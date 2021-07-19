@@ -35,6 +35,7 @@ class TestPublish():
         client2.connect(host=host, port=port, cleansession=False)
 
         client2.subscribe([self.topics[0]], [1])
+        time.sleep(0.5)
         packet = MQTTV3.unpackPacket(MQTTV3.getPacket(client2.sock))
         assert packet.fh.MessageType == MQTTV3.SUBACK
 
