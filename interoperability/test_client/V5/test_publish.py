@@ -99,9 +99,15 @@ def test_retain_handling():
   bclient.subscribe([topics[2]], [MQTTV5.SubscribeOptions(2,False,False,1)])
   waitfor(callback2.messages, 1, 3)
   assert len(callback2.messages) == 1
-  bclient.subscribe([topics[2]], [MQTTV5.SubscribeOptions(1,False,False,1)])
+  # existed subscription, no message recevied
+  bclient.subscribe([topics[2]], [MQTTV5.SubscribeOptions(2,False,False,1)])
   waitfor(callback2.messages, 2, 3)
   assert len(callback2.messages) == 1
+  # new subscription, recevied the retained messages
+  bclient.subscribe([topics[2]], [MQTTV5.SubscribeOptions(1,False,False,1)])
+  waitfor(callback2.messages, 2, 3)
+  assert len(callback2.messages) == 2
+
   bclient.disconnect()
 
   # [MQTT-3.3.1-11]
