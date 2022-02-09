@@ -92,8 +92,17 @@ def test_maximum_packet_size(base_wait_for, base_sleep, base_socket_timeout):
   connack = aclient.connect(host=host, port=port, cleanstart=True,
                             socket_timeout=9 * base_socket_timeout)
   assert hasattr(connack.properties, "MaximumPacketSize")
-  payload = b"." * (int(connack.properties.MaximumPacketSize) + 1)
+
+  # publish a simple message to ensure that the channel connection
+  # state is not idle
+  aclient.subscribe([topics[0]], [MQTTV5.SubscribeOptions(2)])
   time.sleep(2 * base_sleep)
+  aclient.publish(topics[0], b".", 0)
+  time.sleep(2 * base_sleep)
+  waitfor(callback.messages, 1, 5 * base_wait_for)
+  callback.clear()
+
+  payload = b"." * (int(connack.properties.MaximumPacketSize) + 1)
   aclient.publish(topics[0], payload, 0)
   # should get back a disconnect with packet size too big
   waitfor(callback.disconnects, 1, 9 * base_wait_for)
