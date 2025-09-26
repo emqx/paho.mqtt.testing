@@ -24,6 +24,7 @@ class Callbacks(mqtt_client.Callback):
     self.subscribeds = []
     self.unsubscribeds = []
     self.disconnects = []
+    self.exceptions = []
 
   def __str__(self):
      return str(self.messages) + str(self.messagedicts) + str(self.publisheds) + \

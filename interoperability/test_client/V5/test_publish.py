@@ -1,5 +1,5 @@
 from .test_basic import *
-import mqtt.formats.MQTTV5 as MQTTV5, time
+import mqtt.formats.MQTTV5 as MQTTV5, time, errno
 
 # These need to be imported explicitly so that pytest sees it
 from .test_basic import base_socket_timeout, base_sleep, base_wait_for
@@ -389,7 +389,16 @@ def test_maximum_packet_size(base_wait_for, base_sleep, base_socket_timeout):
   payload = b"." * (int(connack.properties.MaximumPacketSize) + 1)
   time.sleep(4 * base_sleep)
   myclient.publish(topics[0], payload, 0)
-  # should get back a disconnect with packet size too big
-  waitfor(callback.disconnects, 1, 9 * base_wait_for)
-  assert len(callback.disconnects) == 1
-  assert callback.disconnects[0]["reasonCode"].value == 149
+  try:
+    # case 1: broker sends proper DISCONNECT
+    waitfor(callback.disconnects, 1, 9 * base_wait_for)
+    assert len(callback.disconnects) == 1
+    assert callback.disconnects[0]["reasonCode"].value == 149
+  except AssertionError:
+    # case 2: broker just closed TCP
+    # allow it as valid too
+    assert not callback.disconnects
+    assert callback.exceptions  # make sure something got logged
+    exc_type, exc_val = callback.exceptions[-1]
+    assert exc_type is ConnectionResetError
+    assert exc_val.errno == errno.ECONNRESET

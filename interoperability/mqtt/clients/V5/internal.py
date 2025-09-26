@@ -169,4 +169,7 @@ class Receivers:
       if not self.stopping and sys.exc_info()[0] != socket.error:
         logger.error("call: unexpected exception %s", str(sys.exc_info()))
         traceback.print_exc()
+        # Store exception in callback if it has exceptions attribute
+        if hasattr(callback, 'exceptions'):
+          callback.exceptions.append(sys.exc_info()[:2])
     self.running = False
