@@ -391,11 +391,18 @@ def test_maximum_packet_size(base_wait_for, base_sleep, base_socket_timeout):
   myclient.publish(topics[0], payload, 0)
   # Define condition functions for waitfor_either
   def condition1_disconnect():
-    return len(callback.disconnects) >= 1
+    disconnect_count = len(callback.disconnects)
+    if disconnect_count >= 1:
+      print(f"DEBUG: DISCONNECT condition met, count={disconnect_count}")
+    return disconnect_count >= 1
   def condition2_exception():
-    return len(callback.exceptions) >= 1
+    exception_count = len(callback.exceptions)
+    if exception_count >= 1:
+      print(f"DEBUG: EXCEPTION condition met, count={exception_count}")
+    return exception_count >= 1
   # Wait for either proper DISCONNECT or TCP connection reset
-  condition_met, condition_num = waitfor_either(condition1_disconnect, condition2_exception, 15 * base_wait_for)
+  # Use longer timeout for CI environments (GitHub Actions can be slower)
+  condition_met, condition_num = waitfor_either(condition1_disconnect, condition2_exception, 60 * base_wait_for)
   if condition_num == 1:
     # case 1: broker sends proper DISCONNECT
     assert len(callback.disconnects) == 1
@@ -410,4 +417,7 @@ def test_maximum_packet_size(base_wait_for, base_sleep, base_socket_timeout):
     assert exc_val.errno == errno.ECONNRESET
   else:
     # Neither condition met within timeout
+    print(f"DEBUG: Timeout reached. Disconnects: {len(callback.disconnects)}, Exceptions: {len(callback.exceptions)}")
+    if callback.exceptions:
+      print(f"DEBUG: Last exception: {callback.exceptions[-1]}")
     assert False, "Neither DISCONNECT nor exception occurred within timeout"
