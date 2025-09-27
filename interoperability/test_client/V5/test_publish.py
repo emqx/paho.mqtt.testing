@@ -389,12 +389,18 @@ def test_maximum_packet_size(base_wait_for, base_sleep, base_socket_timeout):
   payload = b"." * (int(connack.properties.MaximumPacketSize) + 1)
   time.sleep(4 * base_sleep)
   myclient.publish(topics[0], payload, 0)
-  try:
+  # Define condition functions for waitfor_either
+  def condition1_disconnect():
+    return len(callback.disconnects) >= 1
+  def condition2_exception():
+    return len(callback.exceptions) >= 1
+  # Wait for either proper DISCONNECT or TCP connection reset
+  condition_met, condition_num = waitfor_either(condition1_disconnect, condition2_exception, 15 * base_wait_for)
+  if condition_num == 1:
     # case 1: broker sends proper DISCONNECT
-    waitfor(callback.disconnects, 1, 9 * base_wait_for)
     assert len(callback.disconnects) == 1
     assert callback.disconnects[0]["reasonCode"].value == 149
-  except AssertionError:
+  elif condition_num == 2:
     # case 2: broker just closed TCP
     # allow it as valid too
     assert not callback.disconnects
@@ -402,3 +408,6 @@ def test_maximum_packet_size(base_wait_for, base_sleep, base_socket_timeout):
     exc_type, exc_val = callback.exceptions[-1]
     assert exc_type is ConnectionResetError
     assert exc_val.errno == errno.ECONNRESET
+  else:
+    # Neither condition met within timeout
+    assert False, "Neither DISCONNECT nor exception occurred within timeout"

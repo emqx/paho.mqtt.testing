@@ -118,3 +118,29 @@ def waitfor(queue, depth, limit):
     interval = .5
     total += interval
     time.sleep(interval)
+
+def waitfor_either(condition1_func, condition2_func, limit):
+  """
+  Wait for either of two conditions to be met within the given time limit.
+
+  Args:
+    condition1_func: Function that returns True if condition 1 is met
+    condition2_func: Function that returns True if condition 2 is met
+    limit: Maximum time to wait in seconds
+
+  Returns:
+    tuple: (condition_met, condition_number) where condition_number is 1 or 2
+  """
+  total = 0
+  interval = .5
+
+  while total < limit:
+    if condition1_func():
+      return (True, 1)
+    if condition2_func():
+      return (True, 2)
+
+    total += interval
+    time.sleep(interval)
+
+  return (False, None)
