@@ -1,5 +1,5 @@
 from .test_basic import *
-import mqtt.formats.MQTTV5 as MQTTV5, time, errno
+import mqtt.formats.MQTTV5 as MQTTV5, time, errno, sys
 
 # These need to be imported explicitly so that pytest sees it
 from .test_basic import base_socket_timeout, base_sleep, base_wait_for
@@ -387,22 +387,31 @@ def test_maximum_packet_size(base_wait_for, base_sleep, base_socket_timeout):
                              socket_timeout=9 * base_socket_timeout)
   assert hasattr(connack.properties, "MaximumPacketSize" )
   payload = b"." * (int(connack.properties.MaximumPacketSize) + 1)
+  sys.stdout.write(f"DEBUG: Publishing oversized payload of {len(payload)} bytes (max allowed: {connack.properties.MaximumPacketSize})\n")
+  sys.stdout.flush()
   time.sleep(4 * base_sleep)
   myclient.publish(topics[0], payload, 0)
   # Define condition functions for waitfor_either
   def condition1_disconnect():
     disconnect_count = len(callback.disconnects)
     if disconnect_count >= 1:
-      print(f"DEBUG: DISCONNECT condition met, count={disconnect_count}")
+      # Use sys.stdout.write to bypass pytest output capture
+      sys.stdout.write(f"DEBUG: DISCONNECT condition met, count={disconnect_count}\n")
+      sys.stdout.flush()
     return disconnect_count >= 1
   def condition2_exception():
     exception_count = len(callback.exceptions)
     if exception_count >= 1:
-      print(f"DEBUG: EXCEPTION condition met, count={exception_count}")
+      # Use sys.stdout.write to bypass pytest output capture
+      sys.stdout.write(f"DEBUG: EXCEPTION condition met, count={exception_count}\n")
+      sys.stdout.flush()
     return exception_count >= 1
   # Wait for either proper DISCONNECT or TCP connection reset
   # Use longer timeout for CI environments (GitHub Actions can be slower)
-  condition_met, condition_num = waitfor_either(condition1_disconnect, condition2_exception, 60 * base_wait_for)
+  timeout_seconds = 60 * base_wait_for
+  sys.stdout.write(f"DEBUG: Waiting up to {timeout_seconds} seconds for either DISCONNECT or exception\n")
+  sys.stdout.flush()
+  condition_met, condition_num = waitfor_either(condition1_disconnect, condition2_exception, timeout_seconds)
   if condition_num == 1:
     # case 1: broker sends proper DISCONNECT
     assert len(callback.disconnects) == 1
@@ -417,7 +426,8 @@ def test_maximum_packet_size(base_wait_for, base_sleep, base_socket_timeout):
     assert exc_val.errno == errno.ECONNRESET
   else:
     # Neither condition met within timeout
-    print(f"DEBUG: Timeout reached. Disconnects: {len(callback.disconnects)}, Exceptions: {len(callback.exceptions)}")
+    sys.stdout.write(f"DEBUG: Timeout reached. Disconnects: {len(callback.disconnects)}, Exceptions: {len(callback.exceptions)}\n")
     if callback.exceptions:
-      print(f"DEBUG: Last exception: {callback.exceptions[-1]}")
+      sys.stdout.write(f"DEBUG: Last exception: {callback.exceptions[-1]}\n")
+    sys.stdout.flush()
     assert False, "Neither DISCONNECT nor exception occurred within timeout"
